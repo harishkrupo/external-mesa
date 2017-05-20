@@ -648,6 +648,37 @@ droid_swap_buffers(_EGLDriver *drv, _EGLDisplay *disp, _EGLSurface *draw)
    return EGL_TRUE;
 }
 
+static EGLBoolean
+droid_set_damage_region(_EGLDriver *drv,
+                        _EGLDisplay *disp,
+                        _EGLSurface *draw, const EGLint* rects, EGLint n_rects)
+{
+   struct dri2_egl_display *dri2_dpy = dri2_egl_display(disp);
+   struct dri2_egl_surface *dri2_surf = dri2_egl_surface(draw);
+   android_native_rect_t* droid_rects = NULL;
+   if (n_rects != 0)
+      droid_rects = (android_native_rect_t *)
+         calloc(n_rects, sizeof(android_native_rect_t));
+
+   EGLint surfWidth = dri2_surf->base.Width;
+   EGLint surfHeight = dri2_surf->base.Height;
+   EGLint dIndex;
+
+   for (dIndex = 0; dIndex < n_rects; dIndex++) {
+      EGLint i = dIndex * 4;
+      droid_rects[dIndex].left = rects[i]; // left == x
+      droid_rects[dIndex].bottom = rects[i + 1]; // bottom == y
+      droid_rects[dIndex].right = rects[i] + rects[i + 2]; // left + width
+      droid_rects[dIndex].top = rects[i + 1] + rects[i + 3]; // bottom + height
+   }
+
+   native_window_set_surface_damage(dri2_surf->window, droid_rects, n_rects);
+
+   free(droid_rects);
+
+   return EGL_TRUE;
+}
+
 static _EGLImage *
 droid_create_image_from_prime_fd_yuv(_EGLDisplay *disp, _EGLContext *ctx,
                                      struct ANativeWindowBuffer *buf, int fd)
@@ -1098,6 +1129,7 @@ static struct dri2_egl_display_vtbl droid_display_vtbl = {
    .swap_buffers = droid_swap_buffers,
    .swap_buffers_with_damage = dri2_fallback_swap_buffers_with_damage,
    .swap_buffers_region = dri2_fallback_swap_buffers_region,
+   .set_damage_region = droid_set_damage_region,
    .post_sub_buffer = dri2_fallback_post_sub_buffer,
    .copy_buffers = dri2_fallback_copy_buffers,
    .query_buffer_age = droid_query_buffer_age,
@@ -1198,6 +1230,7 @@ dri2_initialize_android(_EGLDriver *drv, _EGLDisplay *dpy)
    dpy->Extensions.ANDROID_image_native_buffer = EGL_TRUE;
    dpy->Extensions.ANDROID_recordable = EGL_TRUE;
    dpy->Extensions.EXT_buffer_age = EGL_TRUE;
+   dpy->Extensions.KHR_partial_update = EGL_TRUE;
 
    /* Fill vtbl last to prevent accidentally calling virtual function during
     * initialization.
