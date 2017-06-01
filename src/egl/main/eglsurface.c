@@ -317,6 +317,8 @@ _eglInitSurface(_EGLSurface *surf, _EGLDisplay *dpy, EGLint type,
    surf->AspectRatio = EGL_UNKNOWN;
 
    surf->PostSubBufferSupportedNV = EGL_FALSE;
+   surf->SetDamageRegion = EGL_FALSE;
+   surf->BufferAgeRead = EGL_FALSE;
 
    /* the default swap interval is 1 */
    _eglClampSwapInterval(surf, 1);
@@ -409,7 +411,13 @@ _eglQuerySurface(_EGLDriver *drv, _EGLDisplay *dpy, _EGLSurface *surface,
          _eglError(EGL_BAD_ATTRIBUTE, "eglQuerySurface");
          return EGL_FALSE;
       }
+      _EGLContext *ctx = _eglGetCurrentContext();
+      if (_eglGetContextHandle(ctx) == EGL_NO_CONTEXT || ctx->DrawSurface != surface) {
+         _eglError(EGL_BAD_SURFACE, "eglQuerySurface");
+         return EGL_FALSE;
+      }
       *value = drv->API.QueryBufferAge(drv, dpy, surface);
+      surface->BufferAgeRead = EGL_TRUE;
       break;
    default:
       _eglError(EGL_BAD_ATTRIBUTE, "eglQuerySurface");
