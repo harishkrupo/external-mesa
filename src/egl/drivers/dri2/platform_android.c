@@ -693,6 +693,18 @@ droid_set_damage_region(_EGLDriver *drv,
 
    return ret == 0 ? EGL_TRUE : EGL_FALSE;
 }
+
+static EGLBoolean
+droid_swap_buffers_with_damage(_EGLDriver *drv, _EGLDisplay *dpy,
+                                          _EGLSurface *surface,
+                                          const EGLint *rects, EGLint n_rects)
+{
+   int ret;
+   ret = droid_set_damage_region(drv, dpy, surface, rects, n_rects);
+   if (!ret)
+      return ret;
+   return droid_swap_buffers(drv, dpy, surface);
+}
 #endif
 
 static _EGLImage *
@@ -1143,12 +1155,13 @@ static const struct dri2_egl_display_vtbl droid_display_vtbl = {
    .create_image = droid_create_image_khr,
    .swap_interval = dri2_fallback_swap_interval,
    .swap_buffers = droid_swap_buffers,
-   .swap_buffers_with_damage = dri2_fallback_swap_buffers_with_damage,
    .swap_buffers_region = dri2_fallback_swap_buffers_region,
 #if ANDROID_API_LEVEL >= 23
    .set_damage_region = droid_set_damage_region,
+   .swap_buffers_with_damage = droid_swap_buffers_with_damage,
 #else
    .set_damage_region = dri2_fallback_set_damage_region,
+   .swap_buffers_with_damage = dri2_fallback_swap_buffers_with_damage,
 #endif
    .post_sub_buffer = dri2_fallback_post_sub_buffer,
    .copy_buffers = dri2_fallback_copy_buffers,
