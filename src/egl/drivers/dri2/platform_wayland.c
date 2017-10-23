@@ -809,8 +809,34 @@ try_damage_buffer(struct dri2_egl_surface *dri2_surf,
    }
    return EGL_TRUE;
 }
+
 /**
- * Called via eglSwapBuffers(), drv->API.SwapBuffers().
+ * Called via eglSetDamageRegionKHR(), drv->API.SetDamageRegion().
+ */
+static EGLBoolean
+dri2_wl_set_damage_region(_EGLDriver *drv,
+                     _EGLDisplay *dpy,
+                     _EGLSurface *surf,
+                     const EGLint *rects,
+                     EGLint n_rects)
+{
+   struct dri2_egl_surface *dri2_surf = dri2_egl_surface(surf);
+
+   /* The spec doesn't mention what should be returned in case of
+    * failure in setting the damage buffer with the window system, so
+    * setting the damage to maximum surface area
+    */
+   if (!n_rects || !try_damage_buffer(dri2_surf, rects, n_rects)) {
+      wl_surface_damage(dri2_surf->wl_surface_wrapper, 0, 0,
+                        INT32_MAX, INT32_MAX);
+   }
+
+   return EGL_TRUE;
+}
+
+/**
+ * Called via eglSwapBuffersWithDamage{KHR,EXT}(),
+ * drv->API.SwapBuffersWithDamageEXT().
  */
 static EGLBoolean
 dri2_wl_swap_buffers_with_damage(_EGLDriver *drv,
@@ -875,9 +901,8 @@ dri2_wl_swap_buffers_with_damage(_EGLDriver *drv,
    /* If the compositor doesn't support damage_buffer, we deliberately
     * ignore the damage region and post maximum damage, due to
     * https://bugs.freedesktop.org/78190 */
-   if (!n_rects || !try_damage_buffer(dri2_surf, rects, n_rects))
-      wl_surface_damage(dri2_surf->wl_surface_wrapper,
-                        0, 0, INT32_MAX, INT32_MAX);
+   if (n_rects || !dri2_surf->base.SetDamageRegionCalled)
+      dri2_wl_set_damage_region(drv, disp, draw, rects, n_rects);
 
    if (dri2_dpy->is_different_gpu) {
       _EGLContext *ctx = _eglGetCurrentContext();
@@ -1166,7 +1191,7 @@ static const struct dri2_egl_display_vtbl dri2_wl_display_vtbl = {
    .swap_buffers = dri2_wl_swap_buffers,
    .swap_buffers_with_damage = dri2_wl_swap_buffers_with_damage,
    .swap_buffers_region = dri2_fallback_swap_buffers_region,
-   .set_damage_region = dri2_fallback_set_damage_region,
+   .set_damage_region = dri2_wl_set_damage_region,
    .post_sub_buffer = dri2_fallback_post_sub_buffer,
    .copy_buffers = dri2_fallback_copy_buffers,
    .query_buffer_age = dri2_wl_query_buffer_age,
@@ -1378,6 +1403,7 @@ dri2_initialize_wayland_drm(_EGLDriver *drv, _EGLDisplay *disp)
    disp->Extensions.EXT_buffer_age = EGL_TRUE;
 
    disp->Extensions.EXT_swap_buffers_with_damage = EGL_TRUE;
+   disp->Extensions.KHR_partial_update = EGL_TRUE;
 
    /* Fill vtbl last to prevent accidentally calling virtual function during
     * initialization.
