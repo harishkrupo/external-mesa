@@ -1603,6 +1603,7 @@ static const __DRI2blobExtension intelBlobExtension = {
 static const __DRIextension *screenExtensions[] = {
     &intelTexBufferExtension.base,
     &intelFenceExtension.base,
+    &intelDamageExtension.base,
     &intelFlushExtension.base,
     &intelImageExtension.base,
     &intelRendererQueryExtension.base,
@@ -1615,6 +1616,7 @@ static const __DRIextension *screenExtensions[] = {
 static const __DRIextension *intelRobustScreenExtensions[] = {
     &intelTexBufferExtension.base,
     &intelFenceExtension.base,
+    &intelDamageExtension.base,
     &intelFlushExtension.base,
     &intelImageExtension.base,
     &intelRendererQueryExtension.base,
