@@ -459,6 +459,7 @@ static const struct dri2_extension_match optional_core_extensions[] = {
    { __DRI2_NO_ERROR, 1, offsetof(struct dri2_egl_display, no_error) },
    { __DRI2_CONFIG_QUERY, 1, offsetof(struct dri2_egl_display, config) },
    { __DRI2_FENCE, 1, offsetof(struct dri2_egl_display, fence) },
+   { __DRI2_DAMAGE, 1, offsetof(struct dri2_egl_display, damage_extension) },
    { __DRI2_RENDERER_QUERY, 1, offsetof(struct dri2_egl_display, rendererQuery) },
    { __DRI2_INTEROP, 1, offsetof(struct dri2_egl_display, interop) },
    { __DRI_IMAGE, 1, offsetof(struct dri2_egl_display, image) },
@@ -894,6 +895,9 @@ dri2_setup_extensions(_EGLDisplay *disp)
                                                dri2_dpy->present_minor_version >= 2)) &&
       (dri2_dpy->image && dri2_dpy->image->base.version >= 15);
 #endif
+
+   if (dri2_dpy->damage_extension)
+      disp->Extensions.KHR_partial_update = true;
 
    dri2_bind_extensions(dri2_dpy, optional_core_extensions, extensions, true);
    return EGL_TRUE;
@@ -1696,7 +1700,10 @@ dri2_set_damage_region(_EGLDriver *drv, _EGLDisplay *dpy, _EGLSurface *surf,
                        EGLint *rects, EGLint n_rects)
 {
    struct dri2_egl_display *dri2_dpy = dri2_egl_display(dpy);
-   return dri2_dpy->vtbl->set_damage_region(drv, dpy, surf, rects, n_rects);
+
+   _EGLContext *ctx = _eglGetCurrentContext();
+   __DRIcontext *dri_ctx = dri2_egl_context(ctx)->dri_context;
+   return dri2_dpy->damage_extension->set_damage_region(dri_ctx, n_rects, rects);
 }
 
 static EGLBoolean
