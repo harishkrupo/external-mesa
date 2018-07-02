@@ -128,6 +128,7 @@ extern GLboolean intelUnbindContext(__DRIcontext * driContextPriv);
 
 PUBLIC const __DRIextension **__driDriverGetExtensions_i965(void);
 extern const __DRI2fenceExtension intelFenceExtension;
+extern const __DRI2DamageExtension intelDamageExtension;
 
 extern GLboolean
 intelMakeCurrent(__DRIcontext * driContextPriv,
